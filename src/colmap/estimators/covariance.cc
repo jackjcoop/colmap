@@ -30,13 +30,58 @@
 #include "colmap/estimators/covariance.h"
 
 #include "colmap/estimators/manifold.h"
+#include "colmap/util/file.h"
 
+#include <fstream>
 #include <unordered_set>
 
 #include <ceres/crs_matrix.h>
 
 namespace colmap {
 namespace {
+
+void WriteSparseMatrix(const Eigen::SparseMatrix<double>& matrix,
+                       const std::string& path) {
+  std::ofstream file(path, std::ios::trunc);
+  THROW_CHECK_FILE_OPEN(file, path);
+  file << matrix.rows() << " " << matrix.cols() << "\n";
+  for (int k = 0; k < matrix.outerSize(); ++k) {
+    for (Eigen::SparseMatrix<double>::InnerIterator it(matrix, k); it; ++it) {
+      file << it.row() << " " << it.col() << " " << it.value() << "\n";
+    }
+  }
+}
+
+template <typename Derived>
+void WriteDenseMatrix(const Eigen::MatrixBase<Derived>& matrix,
+                      const std::string& path) {
+  std::ofstream file(path, std::ios::trunc);
+  THROW_CHECK_FILE_OPEN(file, path);
+  for (int r = 0; r < matrix.rows(); ++r) {
+    for (int c = 0; c < matrix.cols(); ++c) {
+      file << matrix(r, c);
+      if (c + 1 < matrix.cols()) {
+        file << " ";
+      }
+    }
+    file << "\n";
+  }
+}
+
+struct IndexEntry {
+  std::string name;
+  int start = 0;
+  int size = 0;
+};
+
+void WriteIndexFile(const std::vector<IndexEntry>& entries,
+                    const std::string& path) {
+  std::ofstream file(path, std::ios::trunc);
+  THROW_CHECK_FILE_OPEN(file, path);
+  for (const auto& e : entries) {
+    file << e.name << " " << e.start << " " << e.size << "\n";
+  }
+}
 
 bool ComputeSchurComplement(
     bool estimate_point_covs,
@@ -49,7 +94,8 @@ bool ComputeSchurComplement(
     const std::vector<const double*>& others,
     ceres::Problem& problem,
     std::unordered_map<point3D_t, Eigen::MatrixXd>& point_covs,
-    Eigen::SparseMatrix<double>& S) {
+    Eigen::SparseMatrix<double>& S,
+    Eigen::SparseMatrix<double>* J_full_output) {
   VLOG(2) << "Evaluating the Jacobian for Schur elimination";
 
   ceres::Problem::EvaluateOptions eval_options;
@@ -85,6 +131,10 @@ bool ComputeSchurComplement(
       J_full_crs.rows.data(),
       J_full_crs.cols.data(),
       J_full_crs.values.data());
+
+  if (J_full_output != nullptr) {
+    *J_full_output = Eigen::SparseMatrix<double>(J_full);
+  }
 
   if (points.empty()) {
     S = J_full.transpose() * J_full;
@@ -338,18 +388,34 @@ std::optional<BACovariance> EstimateBACovarianceFromProblem(
   int other_num_params = 0;
   std::unordered_map<image_t, std::pair<int, int>> pose_L_start_size;
   std::unordered_map<const double*, std::pair<int, int>> other_L_start_size;
+  std::unordered_map<point3D_t, std::pair<int, int>> point_L_start_size;
+  std::vector<IndexEntry> index_entries;
   for (const auto& point : points) {
-    point_num_params += ParameterBlockTangentSize(problem, point.xyz);
+    const int size = ParameterBlockTangentSize(problem, point.xyz);
+    point_L_start_size.emplace(point.point3D_id,
+                               std::make_pair(point_num_params, size));
+    index_entries.push_back(
+        {"point_" + std::to_string(point.point3D_id), point_num_params, size});
+    point_num_params += size;
   }
   if (estimate_pose_covs || estimate_other_covs) {
     pose_L_start_size.reserve(poses.size());
     for (const auto& pose : poses) {
+      int start = pose_num_params;
       int num_params = 0;
       if (pose.qvec != nullptr) {
-        num_params += ParameterBlockTangentSize(problem, pose.qvec);
+        const int size = ParameterBlockTangentSize(problem, pose.qvec);
+        index_entries.push_back(
+            {"pose_" + std::to_string(pose.image_id) + "_rot", start, size});
+        start += size;
+        num_params += size;
       }
       if (pose.tvec != nullptr) {
-        num_params += ParameterBlockTangentSize(problem, pose.tvec);
+        const int size = ParameterBlockTangentSize(problem, pose.tvec);
+        index_entries.push_back(
+            {"pose_" + std::to_string(pose.image_id) + "_trans", start, size});
+        start += size;
+        num_params += size;
       }
       pose_L_start_size.emplace(pose.image_id,
                                 std::make_pair(pose_num_params, num_params));
@@ -362,23 +428,28 @@ std::optional<BACovariance> EstimateBACovarianceFromProblem(
       other_L_start_size.emplace(
           other,
           std::make_pair(pose_num_params + other_num_params, num_params));
+      index_entries.push_back(
+          {"other_param", pose_num_params + other_num_params, num_params});
       other_num_params += num_params;
     }
   }
 
   std::unordered_map<point3D_t, Eigen::MatrixXd> point_covs;
   Eigen::SparseMatrix<double> S;
-  if (!ComputeSchurComplement(estimate_point_covs,
-                              estimate_pose_covs,
-                              estimate_other_covs,
-                              options.damping,
-                              point_num_params,
-                              points,
-                              poses,
-                              others,
-                              problem,
-                              point_covs,
-                              S)) {
+  Eigen::SparseMatrix<double> J_full;
+  if (!ComputeSchurComplement(
+          estimate_point_covs,
+          estimate_pose_covs,
+          estimate_other_covs,
+          options.damping,
+          point_num_params,
+          points,
+          poses,
+          others,
+          problem,
+          point_covs,
+          S,
+          options.jacobian_path.empty() ? nullptr : &J_full)) {
     return std::nullopt;
   }
 
@@ -401,6 +472,17 @@ std::optional<BACovariance> EstimateBACovarianceFromProblem(
   Eigen::MatrixXd L_inv;
   if (!ComputeLInverse(S, L_inv)) {
     return std::nullopt;
+  }
+
+  if (!options.jacobian_path.empty()) {
+    WriteSparseMatrix(J_full, options.jacobian_path);
+  }
+  if (!options.covariance_path.empty()) {
+    const Eigen::MatrixXd Cov = L_inv.transpose() * L_inv;
+    WriteDenseMatrix(Cov, options.covariance_path);
+  }
+  if (!options.index_path.empty()) {
+    WriteIndexFile(index_entries, options.index_path);
   }
 
   return BACovariance(std::move(point_covs),
