@@ -30,6 +30,7 @@
 #include "colmap/estimators/covariance.h"
 
 #include "colmap/estimators/manifold.h"
+#include "colmap/util/file.h"
 
 #include <fstream>
 #include <unordered_set>
