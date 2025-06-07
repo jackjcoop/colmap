@@ -66,6 +66,7 @@ OptionManager::OptionManager(bool add_project_options) {
   transitive_matching = std::make_shared<TransitiveMatchingOptions>();
   image_pairs_matching = std::make_shared<ImagePairsMatchingOptions>();
   bundle_adjustment = std::make_shared<BundleAdjustmentOptions>();
+  ba_covariance = std::make_shared<BACovarianceOptions>();
   mapper = std::make_shared<IncrementalPipelineOptions>();
   patch_match_stereo = std::make_shared<mvs::PatchMatchOptions>();
   stereo_fusion = std::make_shared<mvs::StereoFusionOptions>();
@@ -186,6 +187,7 @@ void OptionManager::AddAllOptions() {
   AddTransitiveMatchingOptions();
   AddImagePairsMatchingOptions();
   AddBundleAdjustmentOptions();
+  AddBACovarianceOptions();
   AddMapperOptions();
   AddPatchMatchStereoOptions();
   AddStereoFusionOptions();
@@ -503,6 +505,21 @@ void OptionManager::AddBundleAdjustmentOptions() {
       &bundle_adjustment->max_num_images_direct_sparse_gpu_solver);
 }
 
+void OptionManager::AddBACovarianceOptions() {
+  if (added_ba_covariance_options_) {
+    return;
+  }
+  added_ba_covariance_options_ = true;
+
+  AddAndRegisterRequiredOption("BACovariance.jacobian_path",
+                               &ba_covariance->jacobian_path);
+  AddAndRegisterRequiredOption("BACovariance.covariance_path",
+                               &ba_covariance->covariance_path);
+  AddAndRegisterRequiredOption("BACovariance.index_path",
+                               &ba_covariance->index_path);
+  AddAndRegisterDefaultOption("BACovariance.damping", &ba_covariance->damping);
+}
+
 void OptionManager::AddMapperOptions() {
   if (added_mapper_options_) {
     return;
@@ -800,6 +817,7 @@ void OptionManager::Reset() {
   added_transitive_match_options_ = false;
   added_image_pairs_match_options_ = false;
   added_ba_options_ = false;
+  added_ba_covariance_options_ = false;
   added_mapper_options_ = false;
   added_patch_match_stereo_options_ = false;
   added_stereo_fusion_options_ = false;
@@ -824,6 +842,7 @@ void OptionManager::ResetOptions(const bool reset_paths) {
   *transitive_matching = TransitiveMatchingOptions();
   *image_pairs_matching = ImagePairsMatchingOptions();
   *bundle_adjustment = BundleAdjustmentOptions();
+  *ba_covariance = BACovarianceOptions();
   *mapper = IncrementalPipelineOptions();
   *patch_match_stereo = mvs::PatchMatchOptions();
   *stereo_fusion = mvs::StereoFusionOptions();
