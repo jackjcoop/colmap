@@ -183,11 +183,22 @@ int RunBundleAdjuster(int argc, char** argv) {
 
 int RunCovarianceExporter(int argc, char** argv) {
   std::string input_path;
+  std::string gauge_str = "THREE_POINTS";
 
   OptionManager options;
   options.AddRequiredOption("input_path", &input_path);
   options.AddBACovarianceOptions();
+  options.AddDefaultOption(
+      "gauge", &gauge_str, "{THREE_POINTS, TWO_CAMS_FROM_WORLD}");
   options.Parse(argc, argv);
+
+  StringToUpper(&gauge_str);
+  BundleAdjustmentGauge gauge = BundleAdjustmentGauge::THREE_POINTS;
+  try {
+    gauge = BundleAdjustmentGaugeFromString(gauge_str);
+  } catch (const std::exception& e) {
+    LOG(WARNING) << "Invalid gauge specified. Using THREE_POINTS.";
+  }
 
   if (!ExistsDir(input_path)) {
     LOG(ERROR) << "`input_path` is not a directory";
@@ -201,6 +212,7 @@ int RunCovarianceExporter(int argc, char** argv) {
   for (const image_t image_id : reconstruction.RegImageIds()) {
     config.AddImage(image_id);
   }
+  config.FixGauge(gauge);
 
   auto bundle_adjuster = CreateDefaultBundleAdjuster(
       BundleAdjustmentOptions(), std::move(config), reconstruction);

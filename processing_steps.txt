@@ -27,6 +27,7 @@ colmap bundle_adjuster \
 
 colmap covariance_exporter \
     --input_path $DATASET_PATH/sparse/optimized \
+    --gauge THREE_POINTS \
     --BACovariance.jacobian_path $DATASET_PATH/sparse/results/jacobian.txt \
     --BACovariance.covariance_path $DATASET_PATH/sparse/results/covariance.txt \
     --BACovariance.index_path $DATASET_PATH/sparse/results/index.txt \
