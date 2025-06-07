@@ -517,11 +517,10 @@ void OptionManager::AddBACovarianceOptions() {
                                &ba_covariance->covariance_path);
   AddAndRegisterRequiredOption("BACovariance.index_path",
                                &ba_covariance->index_path);
+
   AddAndRegisterRequiredOption("BACovariance.obs_index_path",
                                &ba_covariance->obs_index_path);
-  AddAndRegisterDefaultOption("BACovariance.damping", &ba_covariance->damping);
-}
-
+  
 void OptionManager::AddMapperOptions() {
   if (added_mapper_options_) {
     return;
