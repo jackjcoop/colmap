@@ -390,48 +390,52 @@ std::optional<BACovariance> EstimateBACovarianceFromProblem(
   std::unordered_map<const double*, std::pair<int, int>> other_L_start_size;
   std::unordered_map<point3D_t, std::pair<int, int>> point_L_start_size;
   std::vector<IndexEntry> index_entries;
-  for (const auto& point : points) {
-    const int size = ParameterBlockTangentSize(problem, point.xyz);
-    point_L_start_size.emplace(point.point3D_id,
-                               std::make_pair(point_num_params, size));
-    index_entries.push_back(
-        {"point_" + std::to_string(point.point3D_id), point_num_params, size});
-    point_num_params += size;
-  }
+  int col_idx = 0;
+
   if (estimate_pose_covs || estimate_other_covs) {
     pose_L_start_size.reserve(poses.size());
     for (const auto& pose : poses) {
-      int start = pose_num_params;
+      const int start = col_idx;
       int num_params = 0;
       if (pose.qvec != nullptr) {
         const int size = ParameterBlockTangentSize(problem, pose.qvec);
         index_entries.push_back(
-            {"pose_" + std::to_string(pose.image_id) + "_rot", start, size});
-        start += size;
+            {"pose_" + std::to_string(pose.image_id) + "_rot", col_idx, size});
+        col_idx += size;
         num_params += size;
       }
       if (pose.tvec != nullptr) {
         const int size = ParameterBlockTangentSize(problem, pose.tvec);
         index_entries.push_back(
-            {"pose_" + std::to_string(pose.image_id) + "_trans", start, size});
-        start += size;
+            {"pose_" + std::to_string(pose.image_id) + "_trans",
+             col_idx,
+             size});
+        col_idx += size;
         num_params += size;
       }
       pose_L_start_size.emplace(pose.image_id,
-                                std::make_pair(pose_num_params, num_params));
+                                std::make_pair(start, num_params));
       pose_num_params += num_params;
     }
 
-    other_L_start_size.reserve(poses.size());
+    other_L_start_size.reserve(others.size());
     for (const double* other : others) {
-      const int num_params = ParameterBlockTangentSize(problem, other);
-      other_L_start_size.emplace(
-          other,
-          std::make_pair(pose_num_params + other_num_params, num_params));
-      index_entries.push_back(
-          {"other_param", pose_num_params + other_num_params, num_params});
-      other_num_params += num_params;
+      const int size = ParameterBlockTangentSize(problem, other);
+      index_entries.push_back({"other_param", col_idx, size});
+      other_L_start_size.emplace(other, std::make_pair(col_idx, size));
+      col_idx += size;
+      other_num_params += size;
     }
+  }
+
+  const int point_start = col_idx;
+  for (const auto& point : points) {
+    const int size = ParameterBlockTangentSize(problem, point.xyz);
+    point_L_start_size.emplace(point.point3D_id, std::make_pair(col_idx, size));
+    index_entries.push_back(
+        {"point_" + std::to_string(point.point3D_id), col_idx, size});
+    col_idx += size;
+    point_num_params += size;
   }
 
   std::unordered_map<point3D_t, Eigen::MatrixXd> point_covs;
