@@ -1,0 +1,42 @@
+# 1. Move to your dataset directory (must contain the “images” folder).
+cd /path/to/project
+DATASET_PATH=$(pwd)
+
+# 2. Feature extraction: create a new database and extract image features.
+colmap feature_extractor \
+    --database_path $DATASET_PATH/database.db \
+    --image_path $DATASET_PATH/images
+
+# 3. Feature matching.
+colmap exhaustive_matcher \
+    --database_path $DATASET_PATH/database.db
+
+# 4. Run incremental mapping (SfM) to obtain an initial sparse model.
+mkdir $DATASET_PATH/sparse
+colmap mapper \
+    --database_path $DATASET_PATH/database.db \
+    --image_path $DATASET_PATH/images \
+    --output_path $DATASET_PATH/sparse
+
+# 5. Global bundle adjustment on the reconstructed scene.
+mkdir $DATASET_PATH/sparse/optimized
+colmap bundle_adjuster \
+    --input_path $DATASET_PATH/sparse/1 \
+    --output_path $DATASET_PATH/sparse/optimized
+
+
+colmap covariance_exporter \
+    --input_path $DATASET_PATH/sparse/optimized \
+    --BACovariance.jacobian_path $DATASET_PATH/sparse/results/jacobian.txt \
+    --BACovariance.covariance_path $DATASET_PATH/sparse/results/covariance.txt \
+    --BACovariance.index_path $DATASET_PATH/sparse/results/index.txt \
+    --BACovariance.obs_index_path $DATASET_PATH/sparse/results/obs_index.txt
+
+
+data_dir = Path("/mnt/c/DevSoftware/COLMAP/source/colmap/build/project")
+jac_path = data_dir / "sparse/results/jacobian.txt"
+cov_path = data_dir / "sparse/results/covariance.txt"
+index_path = data_dir / "sparse/results/index.txt"
+obs_index_path = data_dir / "sparse/results/obs_index.txt"
+model_path = data_dir / "sparse/optimized"
+image_id = 5  # image to analyse
