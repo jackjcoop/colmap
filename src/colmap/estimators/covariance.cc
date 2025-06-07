@@ -29,10 +29,11 @@
 
 #include "colmap/estimators/covariance.h"
 
+#include "colmap/estimators/bundle_adjustment.h"
 #include "colmap/estimators/manifold.h"
 #include "colmap/util/file.h"
 #include "colmap/util/types.h"
-#include "colmap/estimators/bundle_adjustment.h"
+
 #include <fstream>
 #include <unordered_set>
 
@@ -81,6 +82,15 @@ struct ObsIndexEntry {
   point3D_t point3D_id = kInvalidPoint3DId;
   int row = 0;
 };
+
+void WriteIndexFile(const std::vector<IndexEntry>& entries,
+                    const std::string& path) {
+  std::ofstream file(path, std::ios::trunc);
+  THROW_CHECK_FILE_OPEN(file, path);
+  for (const auto& e : entries) {
+    file << e.name << " " << e.start << " " << e.size << "\n";
+  }
+}
 
 void WriteObsIndexFile(const std::vector<ObsIndexEntry>& entries,
                        const std::string& path) {
