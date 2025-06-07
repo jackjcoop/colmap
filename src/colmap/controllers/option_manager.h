@@ -29,6 +29,7 @@
 
 #pragma once
 
+#include "colmap/estimators/covariance.h"
 #include "colmap/util/logging.h"
 
 #include <memory>
@@ -91,6 +92,7 @@ class OptionManager {
   void AddTransitiveMatchingOptions();
   void AddImagePairsMatchingOptions();
   void AddBundleAdjustmentOptions();
+  void AddBACovarianceOptions();
   void AddMapperOptions();
   void AddPatchMatchStereoOptions();
   void AddStereoFusionOptions();
@@ -134,6 +136,7 @@ class OptionManager {
   std::shared_ptr<ImagePairsMatchingOptions> image_pairs_matching;
 
   std::shared_ptr<BundleAdjustmentOptions> bundle_adjustment;
+  std::shared_ptr<BACovarianceOptions> ba_covariance;
   std::shared_ptr<IncrementalPipelineOptions> mapper;
 
   std::shared_ptr<mvs::PatchMatchOptions> patch_match_stereo;
@@ -176,6 +179,7 @@ class OptionManager {
   bool added_transitive_match_options_;
   bool added_image_pairs_match_options_;
   bool added_ba_options_;
+  bool added_ba_covariance_options_;
   bool added_mapper_options_;
   bool added_patch_match_stereo_options_;
   bool added_stereo_fusion_options_;

@@ -34,6 +34,7 @@
 #include "colmap/scene/reconstruction.h"
 
 #include <optional>
+#include <string>
 #include <unordered_map>
 #include <vector>
 
@@ -114,6 +115,13 @@ struct BACovarianceOptions {
   // for custom rig bundle adjustment problems. To be removed when proper rig
   // support is enabled in colmap natively.
   std::vector<internal::PoseParam> experimental_custom_poses;
+
+  // Optional paths to save intermediate matrices.
+  // If empty, the respective matrices are not saved.
+  std::string jacobian_path;
+  std::string covariance_path;
+  std::string index_path;
+  std::string obs_index_path;
 };
 
 // Computes covariances for the parameters in a bundle adjustment problem. It is
