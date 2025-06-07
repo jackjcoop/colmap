@@ -181,6 +181,39 @@ int RunBundleAdjuster(int argc, char** argv) {
   return EXIT_SUCCESS;
 }
 
+int RunCovarianceExporter(int argc, char** argv) {
+  std::string input_path;
+
+  OptionManager options;
+  options.AddRequiredOption("input_path", &input_path);
+  options.AddBACovarianceOptions();
+  options.Parse(argc, argv);
+
+  if (!ExistsDir(input_path)) {
+    LOG(ERROR) << "`input_path` is not a directory";
+    return EXIT_FAILURE;
+  }
+
+  Reconstruction reconstruction;
+  reconstruction.Read(input_path);
+
+  BundleAdjustmentConfig config;
+  for (const image_t image_id : reconstruction.RegImageIds()) {
+    config.AddImage(image_id);
+  }
+
+  auto bundle_adjuster = CreateDefaultBundleAdjuster(
+      BundleAdjustmentOptions(), std::move(config), reconstruction);
+
+  if (!EstimateBACovariance(
+          *options.ba_covariance, reconstruction, *bundle_adjuster)) {
+    LOG(ERROR) << "Failed to compute covariance";
+    return EXIT_FAILURE;
+  }
+
+  return EXIT_SUCCESS;
+}
+
 int RunColorExtractor(int argc, char** argv) {
   std::string input_path;
   std::string output_path;
