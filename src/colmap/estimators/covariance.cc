@@ -31,7 +31,8 @@
 
 #include "colmap/estimators/manifold.h"
 #include "colmap/util/file.h"
-
+#include "colmap/util/types.h"
+#include "colmap/estimators/bundle_adjustment.h"
 #include <fstream>
 #include <unordered_set>
 
@@ -74,13 +75,60 @@ struct IndexEntry {
   int size = 0;
 };
 
-void WriteIndexFile(const std::vector<IndexEntry>& entries,
-                    const std::string& path) {
+struct ObsIndexEntry {
+  image_t image_id = kInvalidImageId;
+  point2D_t point2D_idx = kInvalidPoint2DIdx;
+  point3D_t point3D_id = kInvalidPoint3DId;
+  int row = 0;
+};
+
+void WriteObsIndexFile(const std::vector<ObsIndexEntry>& entries,
+                       const std::string& path) {
   std::ofstream file(path, std::ios::trunc);
   THROW_CHECK_FILE_OPEN(file, path);
   for (const auto& e : entries) {
-    file << e.name << " " << e.start << " " << e.size << "\n";
+    file << e.image_id << " " << e.point2D_idx << " " << e.point3D_id << " "
+         << e.row << "\n";
   }
+}
+
+std::vector<ObsIndexEntry> BuildObsIndex(const Reconstruction& reconstruction,
+                                         const BundleAdjustmentConfig& config) {
+  std::vector<ObsIndexEntry> entries;
+  entries.reserve(config.NumResiduals(reconstruction) / 2);
+  int row = 0;
+
+  for (const image_t image_id : config.Images()) {
+    const Image& image = reconstruction.Image(image_id);
+    for (point2D_t idx = 0; idx < image.NumPoints2D(); ++idx) {
+      const Point2D& p2d = image.Point2D(idx);
+      if (!p2d.HasPoint3D()) {
+        continue;
+      }
+      entries.push_back({image_id, idx, p2d.point3D_id, row});
+      row += 2;
+    }
+  }
+
+  auto add_point_obs = [&](point3D_t pid) {
+    const Point3D& p3D = reconstruction.Point3D(pid);
+    for (const auto& el : p3D.track.Elements()) {
+      if (config.HasImage(el.image_id)) {
+        continue;
+      }
+      entries.push_back({el.image_id, el.point2D_idx, pid, row});
+      row += 2;
+    }
+  };
+
+  for (point3D_t pid : config.VariablePoints()) {
+    add_point_obs(pid);
+  }
+  for (point3D_t pid : config.ConstantPoints()) {
+    add_point_obs(pid);
+  }
+
+  return entries;
 }
 
 bool ComputeSchurComplement(
@@ -356,6 +404,10 @@ std::optional<BACovariance> EstimateBACovariance(
     const Reconstruction& reconstruction,
     BundleAdjuster& bundle_adjuster) {
   ceres::Problem& problem = *THROW_CHECK_NOTNULL(bundle_adjuster.Problem());
+  if (!options.obs_index_path.empty()) {
+    auto obs_index = BuildObsIndex(reconstruction, bundle_adjuster.Config());
+    WriteObsIndexFile(obs_index, options.obs_index_path);
+  }
   return EstimateBACovarianceFromProblem(options, reconstruction, problem);
 }
 

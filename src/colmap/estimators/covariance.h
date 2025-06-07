@@ -121,6 +121,7 @@ struct BACovarianceOptions {
   std::string jacobian_path;
   std::string covariance_path;
   std::string index_path;
+  std::string obs_index_path;
 };
 
 // Computes covariances for the parameters in a bundle adjustment problem. It is
