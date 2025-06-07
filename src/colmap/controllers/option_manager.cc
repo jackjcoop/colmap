@@ -520,7 +520,8 @@ void OptionManager::AddBACovarianceOptions() {
 
   AddAndRegisterRequiredOption("BACovariance.obs_index_path",
                                &ba_covariance->obs_index_path);
-  
+}
+
 void OptionManager::AddMapperOptions() {
   if (added_mapper_options_) {
     return;
