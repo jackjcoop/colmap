@@ -659,9 +659,9 @@ class DefaultBundleAdjuster : public BundleAdjuster {
                         BundleAdjustmentConfig config,
                         Reconstruction& reconstruction)
       : BundleAdjuster(std::move(options), std::move(config)),
-        reconstruction_(reconstruction),
         loss_function_(std::unique_ptr<ceres::LossFunction>(
-            options_.CreateLossFunction())) {
+            options_.CreateLossFunction())),
+        reconstruction_(reconstruction) {
     ceres::Problem::Options problem_options;
     problem_options.loss_function_ownership = ceres::DO_NOT_TAKE_OWNERSHIP;
     problem_ = std::make_shared<ceres::Problem>(problem_options);
