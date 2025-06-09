@@ -105,7 +105,10 @@ void BundleAdjustmentWidget::Run() {
   WriteOptions();
 
   auto thread = std::make_unique<ControllerThread<BundleAdjustmentController>>(
-      std::make_shared<BundleAdjustmentController>(*options_, reconstruction_));
+      std::make_shared<BundleAdjustmentController>(
+          *options_,
+          reconstruction_,
+          BundleAdjustmentGauge::TWO_CAMS_FROM_WORLD));
   thread->AddCallback(Thread::FINISHED_CALLBACK,
                       [this]() { render_action_->trigger(); });
 

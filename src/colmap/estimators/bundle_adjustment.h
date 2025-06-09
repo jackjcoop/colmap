@@ -41,8 +41,12 @@
 
 namespace colmap {
 
-MAKE_ENUM_CLASS_OVERLOAD_STREAM(
-    BundleAdjustmentGauge, -1, UNSPECIFIED, TWO_CAMS_FROM_WORLD, THREE_POINTS);
+MAKE_ENUM_CLASS_OVERLOAD_STREAM(BundleAdjustmentGauge,
+                                -1,
+                                UNSPECIFIED,
+                                TWO_CAMS_FROM_WORLD,
+                                THREE_POINTS,
+                                INNER);
 
 // Configuration container to setup bundle adjustment problems.
 class BundleAdjustmentConfig {
