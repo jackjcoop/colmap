@@ -153,12 +153,23 @@ int RunAutomaticReconstructor(int argc, char** argv) {
 int RunBundleAdjuster(int argc, char** argv) {
   std::string input_path;
   std::string output_path;
+  std::string gauge_str = "TWO_CAMS_FROM_WORLD";
 
   OptionManager options;
   options.AddRequiredOption("input_path", &input_path);
   options.AddRequiredOption("output_path", &output_path);
   options.AddBundleAdjustmentOptions();
+  options.AddDefaultOption(
+      "gauge", &gauge_str, "{TWO_CAMS_FROM_WORLD, THREE_POINTS, INNER}");
   options.Parse(argc, argv);
+
+  StringToUpper(&gauge_str);
+  BundleAdjustmentGauge gauge = BundleAdjustmentGauge::TWO_CAMS_FROM_WORLD;
+  try {
+    gauge = BundleAdjustmentGaugeFromString(gauge_str);
+  } catch (const std::exception& e) {
+    LOG(WARNING) << "Invalid gauge specified. Using TWO_CAMS_FROM_WORLD.";
+  }
 
   if (!ExistsDir(input_path)) {
     LOG(ERROR) << "`input_path` is not a directory";
@@ -173,7 +184,7 @@ int RunBundleAdjuster(int argc, char** argv) {
   auto reconstruction = std::make_shared<Reconstruction>();
   reconstruction->Read(input_path);
 
-  BundleAdjustmentController ba_controller(options, reconstruction);
+  BundleAdjustmentController ba_controller(options, reconstruction, gauge);
   ba_controller.Run();
 
   reconstruction->Write(output_path);

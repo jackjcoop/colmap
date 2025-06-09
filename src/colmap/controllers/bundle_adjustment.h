@@ -30,6 +30,7 @@
 #pragma once
 
 #include "colmap/controllers/option_manager.h"
+#include "colmap/estimators/bundle_adjustment.h"
 #include "colmap/scene/reconstruction.h"
 #include "colmap/util/base_controller.h"
 
@@ -39,13 +40,15 @@ namespace colmap {
 class BundleAdjustmentController : public BaseController {
  public:
   BundleAdjustmentController(const OptionManager& options,
-                             std::shared_ptr<Reconstruction> reconstruction);
+                             std::shared_ptr<Reconstruction> reconstruction,
+                             BundleAdjustmentGauge gauge);
 
   void Run();
 
  private:
   const OptionManager options_;
   std::shared_ptr<Reconstruction> reconstruction_;
+  BundleAdjustmentGauge gauge_ = BundleAdjustmentGauge::TWO_CAMS_FROM_WORLD;
 };
 
 }  // namespace colmap

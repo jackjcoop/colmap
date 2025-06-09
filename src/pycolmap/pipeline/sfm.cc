@@ -95,7 +95,10 @@ void BundleAdjustment(const std::shared_ptr<Reconstruction>& reconstruction,
   py::gil_scoped_release release;
   OptionManager option_manager;
   *option_manager.bundle_adjustment = options;
-  BundleAdjustmentController controller(option_manager, reconstruction);
+  BundleAdjustmentController controller(
+      option_manager,
+      reconstruction,
+      BundleAdjustmentGauge::TWO_CAMS_FROM_WORLD);
   controller.Run();
 }
 

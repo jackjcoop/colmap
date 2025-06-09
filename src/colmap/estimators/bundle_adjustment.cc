@@ -32,6 +32,8 @@
 #include "colmap/estimators/alignment.h"
 #include "colmap/estimators/cost_functions.h"
 #include "colmap/estimators/manifold.h"
+#include "colmap/geometry/rigid3.h"
+#include "colmap/geometry/sim3.h"
 #include "colmap/scene/projection.h"
 #include "colmap/sensor/models.h"
 #include "colmap/util/cuda.h"
@@ -630,12 +632,34 @@ void ParameterizePoints(
   }
 }
 
+void ApplyInnerConstraints(Reconstruction& reconstruction,
+                           const BundleAdjustmentConfig& config) {
+  if (config.Images().empty()) {
+    return;
+  }
+
+  const image_t ref_id = *config.Images().begin();
+
+  // Normalize scale and translation of the scene.
+  reconstruction.Normalize(/*fixed_scale=*/false);
+
+  const Rigid3d ref_pose =
+      reconstruction.Image(ref_id).FramePtr()->RigFromWorld();
+
+  const Sim3d world_from_ref(
+      1.0,
+      ref_pose.rotation.conjugate(),
+      -ref_pose.rotation.conjugate() * ref_pose.translation);
+  reconstruction.Transform(world_from_ref);
+}
+
 class DefaultBundleAdjuster : public BundleAdjuster {
  public:
   DefaultBundleAdjuster(BundleAdjustmentOptions options,
                         BundleAdjustmentConfig config,
                         Reconstruction& reconstruction)
       : BundleAdjuster(std::move(options), std::move(config)),
+        reconstruction_(reconstruction),
         loss_function_(std::unique_ptr<ceres::LossFunction>(
             options_.CreateLossFunction())) {
     ceres::Problem::Options problem_options;
@@ -676,6 +700,10 @@ class DefaultBundleAdjuster : public BundleAdjuster {
         options_.CreateSolverOptions(config_, *problem_);
 
     ceres::Solve(solver_options, problem_.get(), &summary);
+
+    if (config_.FixedGauge() == BundleAdjustmentGauge::INNER) {
+      ApplyInnerConstraints(reconstruction_, config_);
+    }
 
     if (options_.print_summary || VLOG_IS_ON(1)) {
       PrintSolverSummary(summary, "Bundle adjustment report");
@@ -869,6 +897,8 @@ class DefaultBundleAdjuster : public BundleAdjuster {
  private:
   std::shared_ptr<ceres::Problem> problem_;
   std::unique_ptr<ceres::LossFunction> loss_function_;
+
+  Reconstruction& reconstruction_;
 
   std::set<camera_t> parameterized_camera_ids_;
   std::set<image_t> parameterized_image_ids_;

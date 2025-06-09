@@ -63,8 +63,11 @@ class BundleAdjustmentIterationCallback : public ceres::IterationCallback {
 
 BundleAdjustmentController::BundleAdjustmentController(
     const OptionManager& options,
-    std::shared_ptr<Reconstruction> reconstruction)
-    : options_(options), reconstruction_(std::move(reconstruction)) {}
+    std::shared_ptr<Reconstruction> reconstruction,
+    BundleAdjustmentGauge gauge)
+    : options_(options),
+      reconstruction_(std::move(reconstruction)),
+      gauge_(gauge) {}
 
 void BundleAdjustmentController::Run() {
   THROW_CHECK_NOTNULL(reconstruction_);
@@ -91,7 +94,7 @@ void BundleAdjustmentController::Run() {
   for (const image_t image_id : reconstruction_->RegImageIds()) {
     ba_config.AddImage(image_id);
   }
-  ba_config.FixGauge(BundleAdjustmentGauge::TWO_CAMS_FROM_WORLD);
+  ba_config.FixGauge(gauge_);
 
   // Run bundle adjustment.
   std::unique_ptr<BundleAdjuster> bundle_adjuster = CreateDefaultBundleAdjuster(
