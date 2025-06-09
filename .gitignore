@@ -47,3 +47,4 @@ vcpkg_installed/
 *.out
 *.app
 /project
+/project_hold
