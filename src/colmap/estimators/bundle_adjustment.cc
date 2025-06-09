@@ -649,7 +649,7 @@ void ApplyInnerConstraints(Reconstruction& reconstruction,
   const Sim3d world_from_ref(
       1.0,
       ref_pose.rotation.conjugate(),
-      -ref_pose.rotation.conjugate() * ref_pose.translation);
+      ref_pose.rotation.conjugate() * (-ref_pose.translation));
   reconstruction.Transform(world_from_ref);
 }
 
