@@ -24,7 +24,7 @@ Assuming you stored the images of your project in the following structure::
 
 The command for the automatic reconstruction tool would be::
 
-    # The project folder must contain a folder "images" with all the images.
+#The project folder must contain a folder "images" with all the images.
     $ DATASET_PATH=/path/to/project
 
     $ colmap automatic_reconstructor \
@@ -36,7 +36,7 @@ command-line argument. In case you need more control over the individual
 parameters of the reconstruction process, you can execute the following sequence
 of commands as an alternative to the automatic reconstruction command::
 
-    # The project folder must contain a folder "images" with all the images.
+#The project folder must contain a folder "images" with all the images.
     $ DATASET_PATH=/path/to/dataset
 
     $ colmap feature_extractor \
@@ -267,7 +267,9 @@ available as ``colmap [command]``:
 
 - ``bundle_adjuster``: Run global bundle adjustment on a reconstructed scene,
   e.g., when a refinement of the intrinsics is needed or
-  after running the ``image_registrator``.
+  after running the ``image_registrator``. The ``--gauge`` option controls how
+  the similarity ambiguity is handled. Setting ``gauge=INNER`` now enforces
+  inner constraints directly during optimization.
 
 - ``database_cleaner``: Clean specific or all database tables.
 

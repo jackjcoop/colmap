@@ -715,5 +715,44 @@ TEST(Reconstruction, DeleteAllPoints2DAndPoints3D) {
   ExpectValidPtrs(reconstruction);
 }
 
+TEST(Reconstruction, BundleAdjustmentInnerGauge) {
+  Reconstruction reconstruction;
+  SyntheticDatasetOptions opts;
+  opts.num_rigs = 1;
+  opts.num_cameras_per_rig = 1;
+  opts.num_frames_per_rig = 5;
+  opts.num_points3D = 20;
+  opts.point2D_stddev = 0;
+  SynthesizeDataset(opts, &reconstruction);
+  const Reconstruction orig = reconstruction;
+
+  BundleAdjustmentConfig cfg;
+  for (const image_t id : reconstruction.RegImageIds()) {
+    cfg.AddImage(id);
+  }
+  cfg.FixGauge(BundleAdjustmentGauge::INNER);
+
+  BundleAdjustmentOptions ba_opts;
+  std::unique_ptr<BundleAdjuster> ba =
+      CreateDefaultBundleAdjuster(ba_opts, cfg, reconstruction);
+  ba->Solve();
+
+  const auto orig_centroid = orig.ComputeCentroid(0.0, 1.0);
+  const auto new_centroid = reconstruction.ComputeCentroid(0.0, 1.0);
+  EXPECT_NEAR((orig_centroid - new_centroid).norm(), 0, 1e-6);
+
+  const image_t ref_id = *reconstruction.RegImageIds().begin();
+  const auto& ref_pose_orig = orig.Image(ref_id).FramePtr()->RigFromWorld();
+  const auto& ref_pose_new =
+      reconstruction.Image(ref_id).FramePtr()->RigFromWorld();
+  EXPECT_LT(ref_pose_orig.rotation.angularDistance(ref_pose_new.rotation),
+            1e-6);
+
+  const double orig_scale = orig.ComputeBoundingBox(0.0, 1.0).diagonal().norm();
+  const double new_scale =
+      reconstruction.ComputeBoundingBox(0.0, 1.0).diagonal().norm();
+  EXPECT_NEAR(new_scale / orig_scale, 1.0, 1e-6);
+}
+
 }  // namespace
 }  // namespace colmap
