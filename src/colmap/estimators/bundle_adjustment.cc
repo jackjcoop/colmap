@@ -653,6 +653,94 @@ void ApplyInnerConstraints(Reconstruction& reconstruction,
   reconstruction.Transform(world_from_ref);
 }
 
+namespace {
+
+Eigen::Matrix3d CrossMatrix(const Eigen::Vector3d& v) {
+  Eigen::Matrix3d m;
+  m << 0, -v.z(), v.y(), v.z(), 0, -v.x(), -v.y(), v.x(), 0;
+  return m;
+}
+
+class InnerConstraintsCostFunction : public ceres::CostFunction {
+ public:
+  InnerConstraintsCostFunction(
+      const std::vector<int>& block_sizes,
+      const std::vector<Eigen::Matrix<double, 7, Eigen::Dynamic>>& jacobians)
+      : jacobians_(jacobians) {
+    set_num_residuals(7);
+    *mutable_parameter_block_sizes() = block_sizes;
+  }
+
+  bool Evaluate(double const* const* /*parameters*/,
+                double* residuals,
+                double** jacobians) const override {
+    for (int i = 0; i < 7; ++i) {
+      residuals[i] = 0.0;
+    }
+    if (jacobians != nullptr) {
+      for (size_t i = 0; i < jacobians_.size(); ++i) {
+        if (jacobians[i] != nullptr) {
+          Eigen::Map<Eigen::Matrix<double, 7, Eigen::Dynamic, Eigen::RowMajor>>
+              J(jacobians[i], 7, jacobians_[i].cols());
+          J = jacobians_[i];
+        }
+      }
+    }
+    return true;
+  }
+
+ private:
+  std::vector<Eigen::Matrix<double, 7, Eigen::Dynamic>> jacobians_;
+};
+
+}  // namespace
+
+void FixGaugeWithInnerConstraints(const BundleAdjustmentConfig& config,
+                                  Reconstruction& reconstruction,
+                                  ceres::Problem& problem) {
+  std::vector<double*> parameter_blocks;
+  std::vector<int> block_sizes;
+  std::vector<Eigen::Matrix<double, 7, Eigen::Dynamic>> jacobians;
+
+  for (const image_t image_id : config.Images()) {
+    Image& image = reconstruction.Image(image_id);
+    Rigid3d& pose = image.FramePtr()->RigFromWorld();
+    if (problem.HasParameterBlock(pose.translation.data())) {
+      const Eigen::Matrix3d Rwc = pose.rotation.conjugate().toRotationMatrix();
+      const Eigen::Vector3d C = pose.rotation.conjugate() * (-pose.translation);
+      Eigen::Matrix<double, 7, 3> J;
+      J.block<3, 3>(0, 0) = -Rwc;
+      J.block<3, 3>(3, 0) = -CrossMatrix(C) * Rwc;
+      J.block<1, 3>(6, 0) = -C.transpose() * Rwc;
+      parameter_blocks.push_back(pose.translation.data());
+      block_sizes.push_back(3);
+      jacobians.push_back(J);
+    }
+  }
+
+  for (const point3D_t pid : config.VariablePoints()) {
+    Point3D& p = reconstruction.Point3D(pid);
+    if (problem.HasParameterBlock(p.xyz.data())) {
+      Eigen::Matrix<double, 7, 3> J;
+      J.block<3, 3>(0, 0) = Eigen::Matrix3d::Identity();
+      J.block<3, 3>(3, 0) = CrossMatrix(p.xyz);
+      J.block<1, 3>(6, 0) = p.xyz.transpose();
+      parameter_blocks.push_back(p.xyz.data());
+      block_sizes.push_back(3);
+      jacobians.push_back(J);
+    }
+  }
+
+  if (parameter_blocks.empty()) {
+    return;
+  }
+
+  problem.AddResidualBlock(
+      new InnerConstraintsCostFunction(block_sizes, jacobians),
+      nullptr,
+      parameter_blocks);
+}
+
 class DefaultBundleAdjuster : public BundleAdjuster {
  public:
   DefaultBundleAdjuster(BundleAdjustmentOptions options,
@@ -688,6 +776,10 @@ class DefaultBundleAdjuster : public BundleAdjuster {
         options_, config_, parameterized_image_ids_, reconstruction, *problem_);
     ParameterizePoints(
         config_, point3D_num_observations_, reconstruction, *problem_);
+
+    if (config_.FixedGauge() == BundleAdjustmentGauge::INNER) {
+      FixGaugeWithInnerConstraints(config_, reconstruction, *problem_);
+    }
   }
 
   ceres::Solver::Summary Solve() override {
@@ -700,10 +792,6 @@ class DefaultBundleAdjuster : public BundleAdjuster {
         options_.CreateSolverOptions(config_, *problem_);
 
     ceres::Solve(solver_options, problem_.get(), &summary);
-
-    if (config_.FixedGauge() == BundleAdjustmentGauge::INNER) {
-      ApplyInnerConstraints(reconstruction_, config_);
-    }
 
     if (options_.print_summary || VLOG_IS_ON(1)) {
       PrintSolverSummary(summary, "Bundle adjustment report");

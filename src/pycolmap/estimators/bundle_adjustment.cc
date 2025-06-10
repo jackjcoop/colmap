@@ -21,7 +21,9 @@ void BindBundleAdjuster(py::module& m) {
           .value("TWO_CAMS_FROM_WORLD",
                  BundleAdjustmentGauge::TWO_CAMS_FROM_WORLD)
           .value("THREE_POINTS", BundleAdjustmentGauge::THREE_POINTS)
-          .value("INNER", BundleAdjustmentGauge::INNER);
+          .value("INNER",
+                 BundleAdjustmentGauge::INNER,
+                 "Apply inner constraints during optimization");
   AddStringToEnumConstructor(PyBundleAdjustmentGauge);
 
   using BACfg = BundleAdjustmentConfig;
