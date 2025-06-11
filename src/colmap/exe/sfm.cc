@@ -46,6 +46,11 @@
 #include <boost/property_tree/ptree.hpp>
 
 namespace colmap {
+
+// Forward declaration of helper from bundle_adjustment.cc
+Sim3d ApplyInnerConstraints(Reconstruction& reconstruction,
+                            const BundleAdjustmentConfig& config);
+
 namespace {
 
 std::pair<std::vector<image_t>, std::vector<Eigen::Vector3d>>
@@ -200,8 +205,7 @@ int RunCovarianceExporter(int argc, char** argv) {
   options.AddRequiredOption("input_path", &input_path);
   options.AddBACovarianceOptions();
   options.AddDefaultOption(
-      "gauge", &gauge_str,
-      "{THREE_POINTS, TWO_CAMS_FROM_WORLD, INNER}");
+      "gauge", &gauge_str, "{THREE_POINTS, TWO_CAMS_FROM_WORLD, INNER}");
   options.Parse(argc, argv);
 
   StringToUpper(&gauge_str);
@@ -226,8 +230,18 @@ int RunCovarianceExporter(int argc, char** argv) {
   }
   config.FixGauge(gauge);
 
+  Sim3d inner_tform;
+  if (gauge == BundleAdjustmentGauge::INNER) {
+    inner_tform = ApplyInnerConstraints(reconstruction, config);
+  }
+
   auto bundle_adjuster = CreateDefaultBundleAdjuster(
       BundleAdjustmentOptions(), std::move(config), reconstruction);
+
+  if (gauge == BundleAdjustmentGauge::INNER) {
+    reconstruction.Transform(Inverse(inner_tform));
+    bundle_adjuster->UpdateInnerConstraints();
+  }
 
   if (!EstimateBACovariance(
           *options.ba_covariance, reconstruction, *bundle_adjuster)) {
