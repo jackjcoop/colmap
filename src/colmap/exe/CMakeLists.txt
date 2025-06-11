@@ -82,6 +82,7 @@ COLMAP_ADD_EXECUTABLE(
         vocab_tree.cc
     LINK_LIBS
         colmap_controllers
+        colmap_estimators
         colmap_retrieval
         colmap_scene
         colmap_sfm
