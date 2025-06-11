@@ -1,3 +1,7 @@
+cmake .. -GNinja
+ninja
+sudo ninja install
+
 # 1. Move to your dataset directory (must contain the “images” folder).
 cd /path/to/project
 DATASET_PATH=$(pwd)
@@ -33,12 +37,13 @@ mkdir $DATASET_PATH/sparse/results
 colmap covariance_exporter \
     --input_path $DATASET_PATH/sparse/optimized \
     --gauge INNER \
-    --BACovariance.jacobian_path $DATASET_PATH/sparse/results_test/jacobian.txt \
-    --BACovariance.covariance_path $DATASET_PATH/sparse/results_test/covariance.txt \
-    --BACovariance.index_path $DATASET_PATH/sparse/results_test/index.txt \
-    --BACovariance.obs_index_path $DATASET_PATH/sparse/results_test/obs_index.txt
+    --BACovariance.jacobian_path $DATASET_PATH/sparse/results/jacobian.txt \
+    --BACovariance.covariance_path $DATASET_PATH/sparse/results/covariance.txt \
+    --BACovariance.index_path $DATASET_PATH/sparse/results/index.txt \
+    --BACovariance.obs_index_path $DATASET_PATH/sparse/results/obs_index.txt
 
 
+# Directories 
 data_dir = Path("/mnt/c/DevSoftware/COLMAP/source/colmap/build/project")
 jac_path = data_dir / "sparse/results/jacobian.txt"
 cov_path = data_dir / "sparse/results/covariance.txt"
