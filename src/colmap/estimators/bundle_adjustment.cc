@@ -632,16 +632,18 @@ void ParameterizePoints(
   }
 }
 
-void ApplyInnerConstraints(Reconstruction& reconstruction,
-                           const BundleAdjustmentConfig& config) {
+Sim3d ApplyInnerConstraints(Reconstruction& reconstruction,
+                            const BundleAdjustmentConfig& config) {
   if (config.Images().empty()) {
-    return;
+    return Sim3d();
   }
 
   const image_t ref_id = *config.Images().begin();
 
-  // Normalize scale and translation of the scene.
-  reconstruction.Normalize(/*fixed_scale=*/false);
+  // Normalize scale and translation of the scene and keep track of the
+  // applied similarity transform.
+  const Sim3d normalized_from_metric =
+      reconstruction.Normalize(/*fixed_scale=*/false);
 
   const Rigid3d ref_pose =
       reconstruction.Image(ref_id).FramePtr()->RigFromWorld();
@@ -651,6 +653,8 @@ void ApplyInnerConstraints(Reconstruction& reconstruction,
       ref_pose.rotation.conjugate(),
       ref_pose.rotation.conjugate() * (-ref_pose.translation));
   reconstruction.Transform(world_from_ref);
+
+  return world_from_ref * normalized_from_metric;
 }
 
 namespace {
@@ -754,6 +758,10 @@ class DefaultBundleAdjuster : public BundleAdjuster {
     problem_options.loss_function_ownership = ceres::DO_NOT_TAKE_OWNERSHIP;
     problem_ = std::make_shared<ceres::Problem>(problem_options);
 
+    if (config_.FixedGauge() == BundleAdjustmentGauge::INNER) {
+      inner_tform_ = ApplyInnerConstraints(reconstruction, config_);
+    }
+
     // Set up problem
     // Warning: AddPointsToProblem assumes that AddImageToProblem is called
     // first. Do not change order of instructions!
@@ -792,6 +800,10 @@ class DefaultBundleAdjuster : public BundleAdjuster {
         options_.CreateSolverOptions(config_, *problem_);
 
     ceres::Solve(solver_options, problem_.get(), &summary);
+
+    if (config_.FixedGauge() == BundleAdjustmentGauge::INNER) {
+      reconstruction_.Transform(Inverse(inner_tform_));
+    }
 
     if (options_.print_summary || VLOG_IS_ON(1)) {
       PrintSolverSummary(summary, "Bundle adjustment report");
@@ -987,6 +999,8 @@ class DefaultBundleAdjuster : public BundleAdjuster {
   std::unique_ptr<ceres::LossFunction> loss_function_;
 
   Reconstruction& reconstruction_;
+
+  Sim3d inner_tform_;
 
   std::set<camera_t> parameterized_camera_ids_;
   std::set<image_t> parameterized_image_ids_;
