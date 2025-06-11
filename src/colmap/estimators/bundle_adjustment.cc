@@ -1206,8 +1206,6 @@ class PosePriorBundleAdjuster : public BundleAdjuster {
   Sim3d normalized_from_metric_;
 };
 
-}  // namespace
-
 std::unique_ptr<BundleAdjuster> CreateDefaultBundleAdjuster(
     BundleAdjustmentOptions options,
     BundleAdjustmentConfig config,
