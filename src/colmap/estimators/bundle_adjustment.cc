@@ -634,6 +634,8 @@ void ParameterizePoints(
   }
 }
 
+}  // namespace
+
 Sim3d ApplyInnerConstraints(Reconstruction& reconstruction,
                             const BundleAdjustmentConfig& config) {
   if (config.Images().empty()) {
