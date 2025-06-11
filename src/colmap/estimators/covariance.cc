@@ -413,6 +413,7 @@ std::optional<BACovariance> EstimateBACovariance(
     const BACovarianceOptions& options,
     const Reconstruction& reconstruction,
     BundleAdjuster& bundle_adjuster) {
+  bundle_adjuster.UpdateInnerConstraints();
   ceres::Problem& problem = *THROW_CHECK_NOTNULL(bundle_adjuster.Problem());
   if (!options.obs_index_path.empty()) {
     auto obs_index = BuildObsIndex(reconstruction, bundle_adjuster.Config());

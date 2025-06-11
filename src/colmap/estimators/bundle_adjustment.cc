@@ -250,6 +250,8 @@ const BundleAdjustmentOptions& BundleAdjuster::Options() const {
 
 const BundleAdjustmentConfig& BundleAdjuster::Config() const { return config_; }
 
+void BundleAdjuster::UpdateInnerConstraints() {}
+
 ////////////////////////////////////////////////////////////////////////////////
 // BundleAdjustmentOptions
 ////////////////////////////////////////////////////////////////////////////////
@@ -699,9 +701,10 @@ class InnerConstraintsCostFunction : public ceres::CostFunction {
 
 }  // namespace
 
-void FixGaugeWithInnerConstraints(const BundleAdjustmentConfig& config,
-                                  Reconstruction& reconstruction,
-                                  ceres::Problem& problem) {
+ceres::ResidualBlockId FixGaugeWithInnerConstraints(
+    const BundleAdjustmentConfig& config,
+    Reconstruction& reconstruction,
+    ceres::Problem& problem) {
   std::vector<double*> parameter_blocks;
   std::vector<int> block_sizes;
   std::vector<Eigen::Matrix<double, 7, Eigen::Dynamic>> jacobians;
@@ -736,10 +739,10 @@ void FixGaugeWithInnerConstraints(const BundleAdjustmentConfig& config,
   }
 
   if (parameter_blocks.empty()) {
-    return;
+    return nullptr;
   }
 
-  problem.AddResidualBlock(
+  return problem.AddResidualBlock(
       new InnerConstraintsCostFunction(block_sizes, jacobians),
       nullptr,
       parameter_blocks);
@@ -786,7 +789,8 @@ class DefaultBundleAdjuster : public BundleAdjuster {
         config_, point3D_num_observations_, reconstruction, *problem_);
 
     if (config_.FixedGauge() == BundleAdjustmentGauge::INNER) {
-      FixGaugeWithInnerConstraints(config_, reconstruction, *problem_);
+      inner_constraints_residual_id_ =
+          FixGaugeWithInnerConstraints(config_, reconstruction, *problem_);
     }
   }
 
@@ -803,6 +807,7 @@ class DefaultBundleAdjuster : public BundleAdjuster {
 
     if (config_.FixedGauge() == BundleAdjustmentGauge::INNER) {
       reconstruction_.Transform(Inverse(inner_tform_));
+      UpdateInnerConstraints();
     }
 
     if (options_.print_summary || VLOG_IS_ON(1)) {
@@ -813,6 +818,17 @@ class DefaultBundleAdjuster : public BundleAdjuster {
   }
 
   std::shared_ptr<ceres::Problem>& Problem() override { return problem_; }
+
+  void UpdateInnerConstraints() override {
+    if (config_.FixedGauge() != BundleAdjustmentGauge::INNER) {
+      return;
+    }
+    if (inner_constraints_residual_id_ != nullptr) {
+      problem_->RemoveResidualBlock(inner_constraints_residual_id_);
+    }
+    inner_constraints_residual_id_ =
+        FixGaugeWithInnerConstraints(config_, reconstruction_, *problem_);
+  }
 
   void AddImageToProblem(const image_t image_id,
                          Reconstruction& reconstruction) {
@@ -1001,6 +1017,7 @@ class DefaultBundleAdjuster : public BundleAdjuster {
   Reconstruction& reconstruction_;
 
   Sim3d inner_tform_;
+  ceres::ResidualBlockId inner_constraints_residual_id_ = nullptr;
 
   std::set<camera_t> parameterized_camera_ids_;
   std::set<image_t> parameterized_image_ids_;
