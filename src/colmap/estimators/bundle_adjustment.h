@@ -219,6 +219,11 @@ class BundleAdjuster {
   virtual ceres::Solver::Summary Solve() = 0;
   virtual std::shared_ptr<ceres::Problem>& Problem() = 0;
 
+  // Refresh any gauge constraints that depend on absolute poses after the
+  // reconstruction has been transformed. Default implementation does nothing
+  // and is overridden by specific bundle adjusters when required.
+  virtual void UpdateInnerConstraints();
+
   const BundleAdjustmentOptions& Options() const;
   const BundleAdjustmentConfig& Config() const;
 

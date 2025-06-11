@@ -345,5 +345,53 @@ INSTANTIATE_TEST_SUITE_P(
           return std::make_pair(options, test_options);
         }()));
 
+TEST(BACovariance, InnerGaugeComparable) {
+  SetPRNGSeed(42);
+
+  auto run_test = [](BundleAdjustmentGauge gauge) {
+    Reconstruction recon;
+    SyntheticDatasetOptions opts;
+    opts.num_rigs = 1;
+    opts.num_cameras_per_rig = 1;
+    opts.num_frames_per_rig = 5;
+    opts.num_points3D = 50;
+    opts.point2D_stddev = 0.01;
+    SynthesizeDataset(opts, &recon);
+
+    BundleAdjustmentConfig cfg;
+    for (const auto& [id, _] : recon.Images()) {
+      cfg.AddImage(id);
+    }
+    cfg.FixGauge(gauge);
+
+    BundleAdjustmentOptions ba_opts;
+    std::unique_ptr<BundleAdjuster> ba =
+        CreateDefaultBundleAdjuster(ba_opts, cfg, recon);
+    const auto summary = ba->Solve();
+    EXPECT_TRUE(summary.IsSolutionUsable());
+
+    BACovarianceOptions cov_opts;
+    cov_opts.params = BACovarianceOptions::Params::POINTS;
+    const auto cov = EstimateBACovariance(cov_opts, recon, *ba);
+    EXPECT_TRUE(cov.has_value());
+
+    double trace_sum = 0.0;
+    size_t count = 0;
+    for (const auto& [pid, _] : recon.Points3D()) {
+      const auto pcov = cov->GetPointCov(pid);
+      if (pcov.has_value()) {
+        trace_sum += pcov->trace();
+        ++count;
+      }
+    }
+    return trace_sum / std::max<size_t>(1, count);
+  };
+
+  const double cov_three = run_test(BundleAdjustmentGauge::THREE_POINTS);
+  const double cov_inner = run_test(BundleAdjustmentGauge::INNER);
+
+  EXPECT_NEAR(cov_inner, cov_three, 0.1 * cov_three);
+}
+
 }  // namespace
 }  // namespace colmap
