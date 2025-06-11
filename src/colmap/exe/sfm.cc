@@ -200,7 +200,8 @@ int RunCovarianceExporter(int argc, char** argv) {
   options.AddRequiredOption("input_path", &input_path);
   options.AddBACovarianceOptions();
   options.AddDefaultOption(
-      "gauge", &gauge_str, "{THREE_POINTS, TWO_CAMS_FROM_WORLD}");
+      "gauge", &gauge_str,
+      "{THREE_POINTS, TWO_CAMS_FROM_WORLD, INNER}");
   options.Parse(argc, argv);
 
   StringToUpper(&gauge_str);
