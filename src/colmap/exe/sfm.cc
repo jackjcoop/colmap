@@ -205,6 +205,7 @@ int RunCovarianceExporter(int argc, char** argv) {
   OptionManager options;
   options.AddRequiredOption("input_path", &input_path);
   options.AddDefaultOption("output_path", &output_path);
+
   options.AddBundleAdjustmentOptions();
   options.AddBACovarianceOptions();
   options.AddDefaultOption(
