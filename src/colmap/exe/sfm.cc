@@ -199,10 +199,12 @@ int RunBundleAdjuster(int argc, char** argv) {
 
 int RunCovarianceExporter(int argc, char** argv) {
   std::string input_path;
+  std::string output_path;
   std::string gauge_str = "THREE_POINTS";
 
   OptionManager options;
   options.AddRequiredOption("input_path", &input_path);
+  options.AddDefaultOption("output_path", &output_path);
   options.AddBundleAdjustmentOptions();
   options.AddBACovarianceOptions();
   options.AddDefaultOption(
@@ -219,6 +221,10 @@ int RunCovarianceExporter(int argc, char** argv) {
 
   if (!ExistsDir(input_path)) {
     LOG(ERROR) << "`input_path` is not a directory";
+    return EXIT_FAILURE;
+  }
+  if (!output_path.empty() && !ExistsDir(output_path)) {
+    LOG(ERROR) << "`output_path` is not a directory";
     return EXIT_FAILURE;
   }
 
@@ -239,6 +245,10 @@ int RunCovarianceExporter(int argc, char** argv) {
   // refined reconstruction and the gauge transformations are correctly
   // applied and reverted inside the bundle adjuster.
   bundle_adjuster->Solve();
+
+  if (!output_path.empty()) {
+    reconstruction.Write(output_path);
+  }
 
   if (!EstimateBACovariance(
           *options.ba_covariance, reconstruction, *bundle_adjuster)) {
