@@ -25,17 +25,11 @@ colmap mapper \
 
 {TWO_CAMS_FROM_WORLD, THREE_POINTS, INNER}
 
-# 5. Global bundle adjustment on the reconstructed scene.
-mkdir $DATASET_PATH/sparse/optimized
-colmap bundle_adjuster \
-    --gauge INNER \
-    --input_path $DATASET_PATH/sparse/1 \
-    --output_path $DATASET_PATH/sparse/optimized
-
-
+# 5. Export covariances. The exporter now performs bundle adjustment
+#    internally, so no separate optimization step is required.
 mkdir $DATASET_PATH/sparse/results
 colmap covariance_exporter \
-    --input_path $DATASET_PATH/sparse/optimized \
+    --input_path $DATASET_PATH/sparse/1 \
     --gauge INNER \
     --BACovariance.jacobian_path $DATASET_PATH/sparse/results/jacobian.txt \
     --BACovariance.covariance_path $DATASET_PATH/sparse/results/covariance.txt \
@@ -49,5 +43,5 @@ jac_path = data_dir / "sparse/results/jacobian.txt"
 cov_path = data_dir / "sparse/results/covariance.txt"
 index_path = data_dir / "sparse/results/index.txt"
 obs_index_path = data_dir / "sparse/results/obs_index.txt"
-model_path = data_dir / "sparse/optimized"
+model_path = data_dir / "sparse/1"
 image_id = 5  # image to analyse
