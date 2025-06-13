@@ -25,17 +25,21 @@ colmap mapper \
 
 {TWO_CAMS_FROM_WORLD, THREE_POINTS, INNER}
 
-# 5. Export covariances. The exporter now performs bundle adjustment
-#    internally, so no separate optimization step is required.
+# 5. Export covariances. The exporter now performs bundle adjustment and
+#    saves the optimized model so a separate optimization step is unnecessary.
 mkdir $DATASET_PATH/sparse/results
+mkdir $DATASET_PATH/sparse/optimized
 colmap covariance_exporter \
     --input_path $DATASET_PATH/sparse/1 \
+    --output_path $DATASET_PATH/sparse/optimized \
     --gauge INNER \
     --BACovariance.jacobian_path $DATASET_PATH/sparse/results/jacobian.txt \
     --BACovariance.covariance_path $DATASET_PATH/sparse/results/covariance.txt \
     --BACovariance.index_path $DATASET_PATH/sparse/results/index.txt \
     --BACovariance.obs_index_path $DATASET_PATH/sparse/results/obs_index.txt
-echo $DATASET_PATH/sparse/1 > $DATASET_PATH/sparse/results/model_path.txt
+
+echo $DATASET_PATH/sparse/optimized > $DATASET_PATH/sparse/results/model_path.txt
+
 
 
 # Directories 
