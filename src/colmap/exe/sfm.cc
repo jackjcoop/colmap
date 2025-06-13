@@ -230,18 +230,8 @@ int RunCovarianceExporter(int argc, char** argv) {
   }
   config.FixGauge(gauge);
 
-  Sim3d inner_tform;
-  if (gauge == BundleAdjustmentGauge::INNER) {
-    inner_tform = ApplyInnerConstraints(reconstruction, config);
-  }
-
   auto bundle_adjuster = CreateDefaultBundleAdjuster(
       BundleAdjustmentOptions(), std::move(config), reconstruction);
-
-  if (gauge == BundleAdjustmentGauge::INNER) {
-    reconstruction.Transform(Inverse(inner_tform));
-    bundle_adjuster->UpdateInnerConstraints();
-  }
 
   if (!EstimateBACovariance(
           *options.ba_covariance, reconstruction, *bundle_adjuster)) {
