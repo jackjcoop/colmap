@@ -230,8 +230,14 @@ int RunCovarianceExporter(int argc, char** argv) {
   }
   config.FixGauge(gauge);
 
+  BundleAdjustmentOptions ba_options;
+  ba_options.solver_options.max_num_iterations = 0;
   auto bundle_adjuster = CreateDefaultBundleAdjuster(
-      BundleAdjustmentOptions(), std::move(config), reconstruction);
+      ba_options, std::move(config), reconstruction);
+
+  // Run a dummy solve to ensure gauge transforms are consistently applied and
+  // reverted before computing the covariance.
+  bundle_adjuster->Solve();
 
   if (!EstimateBACovariance(
           *options.ba_covariance, reconstruction, *bundle_adjuster)) {
