@@ -32,15 +32,19 @@ mkdir $DATASET_PATH/sparse/optimized
 colmap covariance_exporter \
     --input_path $DATASET_PATH/sparse/1 \
     --output_path $DATASET_PATH/sparse/optimized \
-    --gauge INNER \
+    --gauge THREE_POINTS \
     --BACovariance.jacobian_path $DATASET_PATH/sparse/results/jacobian.txt \
     --BACovariance.covariance_path $DATASET_PATH/sparse/results/covariance.txt \
     --BACovariance.index_path $DATASET_PATH/sparse/results/index.txt \
     --BACovariance.obs_index_path $DATASET_PATH/sparse/results/obs_index.txt
 
-echo $DATASET_PATH/sparse/optimized > $DATASET_PATH/sparse/results/model_path.txt
 
-
+# If you want to just run the bundle adjustment
+mkdir $DATASET_PATH/sparse/optimized
+colmap bundle_adjuster \
+    --gauge INNER \
+    --input_path $DATASET_PATH/sparse/1 \
+    --output_path $DATASET_PATH/sparse/optimized
 
 # Directories 
 data_dir = Path("/mnt/c/DevSoftware/COLMAP/source/colmap/build/project")
