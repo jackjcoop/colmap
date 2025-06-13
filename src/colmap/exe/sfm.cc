@@ -203,6 +203,7 @@ int RunCovarianceExporter(int argc, char** argv) {
 
   OptionManager options;
   options.AddRequiredOption("input_path", &input_path);
+  options.AddBundleAdjustmentOptions();
   options.AddBACovarianceOptions();
   options.AddDefaultOption(
       "gauge", &gauge_str, "{THREE_POINTS, TWO_CAMS_FROM_WORLD, INNER}");
@@ -230,13 +231,13 @@ int RunCovarianceExporter(int argc, char** argv) {
   }
   config.FixGauge(gauge);
 
-  BundleAdjustmentOptions ba_options;
-  ba_options.solver_options.max_num_iterations = 0;
+  BundleAdjustmentOptions ba_options = *options.bundle_adjustment;
   auto bundle_adjuster = CreateDefaultBundleAdjuster(
       ba_options, std::move(config), reconstruction);
 
-  // Run a dummy solve to ensure gauge transforms are consistently applied and
-  // reverted before computing the covariance.
+  // Run a full optimization so that the covariance is computed for the
+  // refined reconstruction and the gauge transformations are correctly
+  // applied and reverted inside the bundle adjuster.
   bundle_adjuster->Solve();
 
   if (!EstimateBACovariance(
