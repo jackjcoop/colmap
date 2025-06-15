@@ -715,8 +715,8 @@ ceres::ResidualBlockId FixGaugeWithInnerConstraints(
       J_local.block<1, 3>(6, 0) = -C.transpose() * cross_C * Rwc;
 
       Eigen::Matrix<double, 3, 4, Eigen::RowMajor> minus_jacobian;
-      ceres::internal::ComputeSphereManifoldMinusJacobian(
-          pose.rotation.coeffs().data(), minus_jacobian.data());
+      Eigen::Map<const Eigen::Vector4d> q(pose.rotation.coeffs().data());
+      ceres::internal::ComputeSphereManifoldMinusJacobian(q, &minus_jacobian);
       Eigen::Matrix<double, 7, 4> J = J_local * minus_jacobian;
 
       parameter_blocks.push_back(pose.rotation.coeffs().data());
