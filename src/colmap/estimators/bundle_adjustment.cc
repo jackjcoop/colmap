@@ -636,31 +636,6 @@ void ParameterizePoints(
 
 }  // namespace
 
-Sim3d ApplyInnerConstraints(Reconstruction& reconstruction,
-                            const BundleAdjustmentConfig& config) {
-  if (config.Images().empty()) {
-    return Sim3d();
-  }
-
-  const image_t ref_id = *config.Images().begin();
-
-  // Normalize scale and translation of the scene and keep track of the
-  // applied similarity transform.
-  const Sim3d normalized_from_metric =
-      reconstruction.Normalize(/*fixed_scale=*/false);
-
-  const Rigid3d ref_pose =
-      reconstruction.Image(ref_id).FramePtr()->RigFromWorld();
-
-  const Sim3d world_from_ref(
-      1.0,
-      ref_pose.rotation.conjugate(),
-      ref_pose.rotation.conjugate() * (-ref_pose.translation));
-  reconstruction.Transform(world_from_ref);
-
-  return world_from_ref * normalized_from_metric;
-}
-
 namespace {
 
 Eigen::Matrix3d CrossMatrix(const Eigen::Vector3d& v) {
@@ -764,7 +739,8 @@ class DefaultBundleAdjuster : public BundleAdjuster {
     problem_ = std::make_shared<ceres::Problem>(problem_options);
 
     if (config_.FixedGauge() == BundleAdjustmentGauge::INNER) {
-      inner_tform_ = ApplyInnerConstraints(reconstruction, config_);
+      // Inner constraints are enforced via an additional residual.
+      // No normalization of the reconstruction is required.
     }
 
     // Set up problem
@@ -808,7 +784,6 @@ class DefaultBundleAdjuster : public BundleAdjuster {
     ceres::Solve(solver_options, problem_.get(), &summary);
 
     if (config_.FixedGauge() == BundleAdjustmentGauge::INNER) {
-      reconstruction_.Transform(Inverse(inner_tform_));
       UpdateInnerConstraints();
     }
 
@@ -1018,7 +993,6 @@ class DefaultBundleAdjuster : public BundleAdjuster {
 
   Reconstruction& reconstruction_;
 
-  Sim3d inner_tform_;
   ceres::ResidualBlockId inner_constraints_residual_id_ = nullptr;
 
   std::set<camera_t> parameterized_camera_ids_;
