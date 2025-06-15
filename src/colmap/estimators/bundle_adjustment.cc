@@ -40,9 +40,10 @@
 #include "colmap/util/misc.h"
 #include "colmap/util/threading.h"
 #include "colmap/util/timer.h"
-#include <ceres/internal/sphere_manifold_functions.h>
 
 #include <iomanip>
+
+#include <ceres/internal/sphere_manifold_functions.h>
 
 namespace colmap {
 
@@ -712,9 +713,9 @@ ceres::ResidualBlockId FixGaugeWithInnerConstraints(
       J_local.block<3, 3>(3, 0) = -cross_C_sq * Rwc;
       J_local.block<1, 3>(6, 0) = -C.transpose() * cross_C * Rwc;
 
-      Eigen::Matrix<double, 3, 4> minus_jacobian;
-      ceres::internal::ComputeSphereManifoldMinusJacobian(pose.rotation.coeffs(),
-                                                          &minus_jacobian);
+      Eigen::Matrix<double, 3, 4, Eigen::RowMajor> minus_jacobian;
+      ceres::internal::ComputeSphereManifoldMinusJacobian(
+          pose.rotation.coeffs().data(), minus_jacobian.data());
       Eigen::Matrix<double, 7, 4> J = J_local * minus_jacobian;
 
       parameter_blocks.push_back(pose.rotation.coeffs().data());
@@ -740,9 +741,11 @@ ceres::ResidualBlockId FixGaugeWithInnerConstraints(
     return nullptr;
   }
 
+  constexpr double kInnerConstraintLossScale = 100.0;
   return problem.AddResidualBlock(
       new InnerConstraintsCostFunction(block_sizes, jacobians),
-      nullptr,
+      new ceres::ScaledLoss(
+          nullptr, kInnerConstraintLossScale, ceres::TAKE_OWNERSHIP),
       parameter_blocks);
 }
 
