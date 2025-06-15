@@ -700,6 +700,20 @@ ceres::ResidualBlockId FixGaugeWithInnerConstraints(
       block_sizes.push_back(3);
       jacobians.push_back(J);
     }
+    if (problem.HasParameterBlock(pose.rotation.coeffs().data())) {
+      const Eigen::Matrix3d Rwc = pose.rotation.conjugate().toRotationMatrix();
+      const Eigen::Vector3d C = pose.rotation.conjugate() * (-pose.translation);
+      const Eigen::Matrix3d cross_C = CrossMatrix(C);
+      const Eigen::Matrix3d cross_C_sq =
+          C * C.transpose() - C.squaredNorm() * Eigen::Matrix3d::Identity();
+      Eigen::Matrix<double, 7, 3> J;
+      J.block<3, 3>(0, 0) = -cross_C * Rwc;
+      J.block<3, 3>(3, 0) = -cross_C_sq * Rwc;
+      J.block<1, 3>(6, 0) = -C.transpose() * cross_C * Rwc;
+      parameter_blocks.push_back(pose.rotation.coeffs().data());
+      block_sizes.push_back(4);
+      jacobians.push_back(J);
+    }
   }
 
   for (const point3D_t pid : config.VariablePoints()) {
