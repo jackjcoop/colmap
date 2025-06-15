@@ -47,10 +47,6 @@
 
 namespace colmap {
 
-// Forward declaration of helper from bundle_adjustment.cc
-Sim3d ApplyInnerConstraints(Reconstruction& reconstruction,
-                            const BundleAdjustmentConfig& config);
-
 namespace {
 
 std::pair<std::vector<image_t>, std::vector<Eigen::Vector3d>>
