@@ -503,6 +503,9 @@ void OptionManager::AddBundleAdjustmentOptions() {
   AddAndRegisterDefaultOption(
       "BundleAdjustment.max_num_images_direct_sparse_gpu_solver",
       &bundle_adjustment->max_num_images_direct_sparse_gpu_solver);
+
+  AddAndRegisterDefaultOption("BundleAdjustment.inner_constraints_weight",
+                              &bundle_adjustment->inner_constraints_weight);
 }
 
 void OptionManager::AddBACovarianceOptions() {
