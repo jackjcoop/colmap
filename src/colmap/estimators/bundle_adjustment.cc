@@ -376,6 +376,7 @@ ceres::Solver::Options BundleAdjustmentOptions::CreateSolverOptions(
 
 bool BundleAdjustmentOptions::Check() const {
   CHECK_OPTION_GE(loss_function_scale, 0);
+  CHECK_OPTION_GE(inner_constraints_weight, 0);
   CHECK_OPTION_LT(max_num_images_direct_dense_cpu_solver,
                   max_num_images_direct_sparse_cpu_solver);
   CHECK_OPTION_LT(max_num_images_direct_dense_gpu_solver,
@@ -681,6 +682,7 @@ class InnerConstraintsCostFunction : public ceres::CostFunction {
 
 ceres::ResidualBlockId FixGaugeWithInnerConstraints(
     const BundleAdjustmentConfig& config,
+    const double weight,
     Reconstruction& reconstruction,
     ceres::Problem& problem) {
   std::vector<double*> parameter_blocks;
@@ -712,9 +714,9 @@ ceres::ResidualBlockId FixGaugeWithInnerConstraints(
       J_local.block<3, 3>(3, 0) = -cross_C_sq * Rwc;
       J_local.block<1, 3>(6, 0) = -C.transpose() * cross_C * Rwc;
 
-      Eigen::Matrix<double, 3, 4> minus_jacobian;
-      ceres::internal::ComputeSphereManifoldMinusJacobian(pose.rotation.coeffs(),
-                                                          &minus_jacobian);
+      Eigen::Matrix<double, 3, 4, Eigen::RowMajor> minus_jacobian;
+      ceres::internal::ComputeSphereManifoldMinusJacobian(
+          pose.rotation.coeffs().data(), minus_jacobian.data());
       Eigen::Matrix<double, 7, 4> J = J_local * minus_jacobian;
 
       parameter_blocks.push_back(pose.rotation.coeffs().data());
@@ -740,9 +742,13 @@ ceres::ResidualBlockId FixGaugeWithInnerConstraints(
     return nullptr;
   }
 
+  ceres::LossFunction* loss = nullptr;
+  if (weight != 1.0) {
+    loss = new ceres::ScaledLoss(nullptr, weight, ceres::TAKE_OWNERSHIP);
+  }
   return problem.AddResidualBlock(
       new InnerConstraintsCostFunction(block_sizes, jacobians),
-      nullptr,
+      loss,
       parameter_blocks);
 }
 
@@ -788,8 +794,8 @@ class DefaultBundleAdjuster : public BundleAdjuster {
         config_, point3D_num_observations_, reconstruction, *problem_);
 
     if (config_.FixedGauge() == BundleAdjustmentGauge::INNER) {
-      inner_constraints_residual_id_ =
-          FixGaugeWithInnerConstraints(config_, reconstruction, *problem_);
+      inner_constraints_residual_id_ = FixGaugeWithInnerConstraints(
+          config_, options_.inner_constraints_weight, reconstruction, *problem_);
     }
   }
 
@@ -824,8 +830,8 @@ class DefaultBundleAdjuster : public BundleAdjuster {
     if (inner_constraints_residual_id_ != nullptr) {
       problem_->RemoveResidualBlock(inner_constraints_residual_id_);
     }
-    inner_constraints_residual_id_ =
-        FixGaugeWithInnerConstraints(config_, reconstruction_, *problem_);
+    inner_constraints_residual_id_ = FixGaugeWithInnerConstraints(
+        config_, options_.inner_constraints_weight, reconstruction_, *problem_);
   }
 
   void AddImageToProblem(const image_t image_id,
