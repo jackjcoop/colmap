@@ -130,6 +130,9 @@ struct BundleAdjustmentOptions {
   // Scaling factor determines residual at which robustification takes place.
   double loss_function_scale = 1.0;
 
+  // Weight of the inner gauge constraints relative to pixel residuals.
+  double inner_constraints_weight = 1.0;
+
   // Whether to refine the focal length parameter group.
   bool refine_focal_length = true;
 
