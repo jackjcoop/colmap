@@ -40,6 +40,7 @@
 #include "colmap/util/misc.h"
 #include "colmap/util/threading.h"
 #include "colmap/util/timer.h"
+#include <ceres/internal/sphere_manifold_functions.h>
 
 #include <iomanip>
 
@@ -706,10 +707,16 @@ ceres::ResidualBlockId FixGaugeWithInnerConstraints(
       const Eigen::Matrix3d cross_C = CrossMatrix(C);
       const Eigen::Matrix3d cross_C_sq =
           C * C.transpose() - C.squaredNorm() * Eigen::Matrix3d::Identity();
-      Eigen::Matrix<double, 7, 3> J;
-      J.block<3, 3>(0, 0) = -cross_C * Rwc;
-      J.block<3, 3>(3, 0) = -cross_C_sq * Rwc;
-      J.block<1, 3>(6, 0) = -C.transpose() * cross_C * Rwc;
+      Eigen::Matrix<double, 7, 3> J_local;
+      J_local.block<3, 3>(0, 0) = -cross_C * Rwc;
+      J_local.block<3, 3>(3, 0) = -cross_C_sq * Rwc;
+      J_local.block<1, 3>(6, 0) = -C.transpose() * cross_C * Rwc;
+
+      Eigen::Matrix<double, 3, 4> minus_jacobian;
+      ceres::internal::ComputeSphereManifoldMinusJacobian(pose.rotation.coeffs(),
+                                                          &minus_jacobian);
+      Eigen::Matrix<double, 7, 4> J = J_local * minus_jacobian;
+
       parameter_blocks.push_back(pose.rotation.coeffs().data());
       block_sizes.push_back(4);
       jacobians.push_back(J);
